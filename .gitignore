@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Build artifacts
+*.zip
+*.xpi
+
+# Editor
+.vscode/
+.idea/
+
+# Development tools
+create-icons.html

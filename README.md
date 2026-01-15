@@ -1,80 +1,104 @@
 # Kurabu Mitgliedsausweis Generator
 
-Firefox-Addon zum Generieren von druckbaren Mitgliedsausweisen aus Kurabu-Profilen.
+Firefox-Addon für **bremen 1860** zum Generieren von druckbaren Mitgliedsausweisen aus Kurabu-Profilen.
+
+## Features
+
+- Automatische Erkennung von Mitgliederdaten auf Kurabu-Seiten
+- PDF-Generierung für **vorgedrucktes Briefpapier** (nur variable Daten werden gedruckt)
+- QR-Code mit Profil-ID für Scanner am Halleneingang
+- Download-Button direkt auf der Mitgliederseite
+- Popup mit QR-Code-Vorschau
 
 ## Installation
 
-### 1. Icons erstellen (einmalig)
-1. Öffne `icons/create-icons.html` im Browser
-2. Rechtsklick auf das 48x48 Bild → "Bild speichern unter" → `icons/icon-48.png`
-3. Rechtsklick auf das 96x96 Bild → "Bild speichern unter" → `icons/icon-96.png`
+### Temporär (Entwicklung)
+1. Öffne Firefox und gehe zu `about:debugging`
+2. Klicke auf "Dieser Firefox" (links)
+3. Klicke auf "Temporäres Add-on laden..."
+4. Wähle die `manifest.json` aus diesem Ordner
 
-### 2. Addon in Firefox laden
-1. Öffne Firefox
-2. Gib `about:debugging` in die Adressleiste ein
-3. Klicke auf "Dieser Firefox" (links)
-4. Klicke auf "Temporäres Add-on laden..."
-5. Navigiere zum Ordner `kurabu-ausweis-addon` und wähle `manifest.json`
-
-### 3. Permanente Installation (optional)
-Für eine permanente Installation muss das Addon signiert werden:
-- https://extensionworkshop.com/documentation/publish/signing-and-distribution-overview/
+### Permanent (signiert)
+1. Erstelle einen Account auf https://addons.mozilla.org/developers/
+2. Erstelle eine ZIP-Datei des Addon-Ordners
+3. Lade die ZIP unter "Eigene Add-ons verwalten" hoch (Selbstverteilung)
+4. Installiere die signierte `.xpi`-Datei in Firefox
 
 ## Verwendung
 
-1. Öffne eine Kurabu-Mitgliederseite (z.B. `https://bremen1860.kurabu.com/de/admin/members/...`)
-2. Klicke auf das Addon-Icon in der Toolbar
-3. Die Mitgliederdaten werden automatisch erkannt
-4. Klicke auf "PDF Ausweis erstellen"
-5. Das PDF wird heruntergeladen und kann gedruckt werden
+### Option 1: Button auf der Seite
+1. Öffne eine Kurabu-Mitgliederseite (`https://*.kurabu.com/*/admin/members/*`)
+2. Der Button "Mitgliedsausweis" erscheint oben neben dem Mitgliedsnamen
+3. Klicke auf den Button - das PDF wird automatisch heruntergeladen
+
+### Option 2: Popup
+1. Klicke auf das Addon-Icon in der Firefox-Toolbar
+2. Die Mitgliederdaten und QR-Code-Vorschau werden angezeigt
+3. Klicke auf "PDF Ausweis erstellen"
 
 ## PDF-Layout
 
-Das generierte PDF enthält:
-- **Oben**: Kurzes Anschreiben mit Vereinsname
-- **Unten rechts**: Ausweiskarte im Scheckkartenformat (85x54mm)
-  - Vereinsname
-  - Name des Mitglieds
-  - Profil-ID
-  - Mitglied seit
-  - QR-Code (enthält die Profil-ID)
+Das PDF ist für **vorgedrucktes Briefpapier** konzipiert. Es werden nur die variablen Daten gedruckt:
 
-## Anpassungen
+### Anschreiben (oben)
+- Empfängeradresse (Name, Straße, PLZ, Ort, ggf. Land)
+- Datum
+- Betreff "Neuer Ausweis"
+- Anschreiben-Text
+- Grußformel
 
-### Vereinsname ändern
-In `popup/popup.js` den Text "TV Bremen 1860" suchen und ersetzen.
-
-### Kartenposition ändern
-In `popup/popup.js` die Konstanten anpassen:
-```javascript
-const CARD_MARGIN_RIGHT = 15; // Abstand vom rechten Rand in mm
-const CARD_MARGIN_BOTTOM = 15; // Abstand vom unteren Rand in mm
-```
-
-### Anschreiben-Text ändern
-In `popup/popup.js` in der Funktion `generatePDF()` die `doc.text()` Aufrufe anpassen.
+### Ausweiskarte (unten rechts, 85x54mm)
+- Name (fett)
+- Geburtsdatum (fett)
+- Profil-ID (fett)
+- QR-Code (enthält nur die Profil-ID)
 
 ## Dateien
 
 ```
 kurabu-ausweis-addon/
-├── manifest.json       # Addon-Konfiguration
-├── content.js          # Extrahiert Daten von der Kurabu-Seite
+├── manifest.json          # Addon-Konfiguration (Manifest v2)
+├── content.js             # Hauptlogik: Daten-Extraktion + PDF-Generierung
 ├── popup/
-│   ├── popup.html      # Popup-UI
-│   └── popup.js        # PDF- und QR-Generierung
+│   ├── popup.html         # Popup-UI
+│   └── popup.js           # Popup-Steuerung (delegiert PDF an content.js)
 ├── lib/
-│   ├── qrcode.min.js   # QR-Code Bibliothek
-│   └── jspdf.umd.min.js# PDF Bibliothek
+│   ├── qrcode.min.js      # QR-Code Bibliothek (qrcodejs)
+│   └── jspdf.umd.min.js   # PDF Bibliothek (jsPDF)
 └── icons/
-    ├── icon.svg        # Icon-Vorlage
-    ├── icon-48.png     # 48px Icon (muss erstellt werden)
-    └── icon-96.png     # 96px Icon (muss erstellt werden)
+    ├── icon-48.png        # Toolbar-Icon
+    └── icon-96.png        # Hochauflösendes Icon
 ```
+
+## Anpassungen
+
+### Positionen ändern
+In `content.js` die Koordinaten anpassen (Einheit: mm, A4 = 210x297mm):
+
+```javascript
+// Kartenposition
+const CARD_MARGIN_RIGHT = 15;  // Abstand vom rechten Rand
+const CARD_MARGIN_BOTTOM = 15; // Abstand vom unteren Rand
+
+// Adresse
+let addressY = 43;    // Vertikale Position
+const addressX = 28;  // Horizontale Position
+```
+
+### Anschreiben-Text ändern
+In `content.js` in der Funktion `generatePDF()` die `doc.text()` Aufrufe anpassen.
+
+### Farbe ändern
+In `content.js` die CSS-Variable `#8B1A1A` (bremen 1860 Dunkelrot) ersetzen.
 
 ## Technische Details
 
-- **Profil-ID Extraktion**: Sucht nach `data-testid="label-value-pair-profil-id"`
-- **Name Extraktion**: Sucht nach `#member-name` oder `data-testid="label-value-pair-name"`
-- **QR-Code Inhalt**: Nur die numerische Profil-ID (z.B. "0000000482")
-- **PDF Format**: DIN A4, Portrait
+- **Manifest Version**: 2 (Firefox)
+- **Daten-Extraktion**: DOM-Queries mit `data-testid` Attributen
+- **QR-Code**: Enthält nur die Profil-ID (z.B. "0000000482")
+- **PDF Format**: DIN A4, Portrait, Einheit mm
+- **Bibliotheken**: jsPDF, qrcodejs (lokal eingebunden)
+
+## Lizenz
+
+Entwickelt für bremen 1860 e.V.

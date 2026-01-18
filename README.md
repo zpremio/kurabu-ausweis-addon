@@ -20,9 +20,68 @@ Firefox-Addon für **bremen 1860** zum Generieren von druckbaren Mitgliedsauswei
 
 ### Permanent (signiert)
 1. Erstelle einen Account auf https://addons.mozilla.org/developers/
-2. Erstelle eine ZIP-Datei des Addon-Ordners
-3. Lade die ZIP unter "Eigene Add-ons verwalten" hoch (Selbstverteilung)
-4. Installiere die signierte `.xpi`-Datei in Firefox
+2. Erstelle eine ZIP-Datei des Addon-Ordners: `zip -r kurabu-ausweis-vX.X.X.zip . -x "*.git*" -x "*.DS_Store" -x "Thumbs.db"`
+3. Lade die ZIP unter "Eigene Add-ons verwalten" hoch (Selbstverteilung wählen)
+4. Mozilla signiert die Extension und gibt eine `.xpi`-Datei zurück
+5. Installiere die signierte `.xpi`-Datei in Firefox (Datei in Firefox ziehen oder über `about:addons`)
+
+## Auto-Updates einrichten
+
+Für automatische Updates muss die Extension auf einem HTTPS-Server gehostet werden.
+
+### 1. Server-Struktur
+
+```
+https://dein-server.de/downloads/
+├── kurabu-ausweis-v1.5.0.xpi    # Signierte Extension
+└── updates.json                  # Update-Manifest
+```
+
+### 2. updates.json erstellen
+
+```json
+{
+  "addons": {
+    "kurabu-ausweis@bremen1860.de": {
+      "updates": [
+        {
+          "version": "1.5.0",
+          "update_link": "https://dein-server.de/downloads/kurabu-ausweis-v1.5.0.xpi"
+        }
+      ]
+    }
+  }
+}
+```
+
+### 3. manifest.json anpassen
+
+In `browser_specific_settings.gecko` die `update_url` hinzufügen:
+
+```json
+"browser_specific_settings": {
+  "gecko": {
+    "id": "kurabu-ausweis@bremen1860.de",
+    "update_url": "https://dein-server.de/downloads/updates.json"
+  }
+}
+```
+
+### 4. Update-Workflow
+
+1. **Entwicklung**: Änderungen machen, Version in `manifest.json` und `popup.html` erhöhen
+2. **ZIP erstellen**: `zip -r kurabu-ausweis-vX.X.X.zip . -x "*.git*" -x "*.DS_Store"`
+3. **Signieren**: ZIP auf https://addons.mozilla.org hochladen (Selbstverteilung)
+4. **XPI herunterladen**: Mozilla gibt signierte `.xpi` zurück
+5. **Server aktualisieren**: XPI hochladen und `updates.json` mit neuer Version aktualisieren
+6. **Fertig**: Firefox prüft alle 24h auf Updates und installiert automatisch
+
+### Hinweise
+
+- Die `update_url` und `update_link` müssen **HTTPS** sein
+- Firefox prüft standardmäßig alle 24 Stunden auf Updates
+- Zum Testen: `about:config` → `extensions.update.interval` auf `120` (Sekunden) setzen
+- Die Extension-ID in `updates.json` muss mit der ID in `manifest.json` übereinstimmen
 
 ## Verwendung
 

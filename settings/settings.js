@@ -203,10 +203,116 @@ async function resetSettings() {
   }
 }
 
+// Einstellungen exportieren
+function exportSettings() {
+  const status = document.getElementById('status');
+
+  try {
+    const anschreibenText = document.getElementById('default-anschreiben').value.trim();
+
+    const exportData = {
+      version: '1.5.0',
+      exportDate: new Date().toISOString(),
+      anschreibenText: anschreibenText,
+      customHinweise: customHinweise.map(h => ({
+        id: h.id,
+        label: h.label.trim(),
+        text: h.text.trim(),
+        position: h.position || 'below'
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ausweis-einstellungen-' + new Date().toISOString().split('T')[0] + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    status.textContent = 'Einstellungen wurden exportiert!';
+    status.className = 'status success';
+
+    setTimeout(() => {
+      status.className = 'status';
+    }, 3000);
+
+  } catch (e) {
+    console.error('Fehler beim Exportieren:', e);
+    status.textContent = 'Fehler beim Exportieren: ' + e.message;
+    status.className = 'status error';
+  }
+}
+
+// Einstellungen importieren
+function importSettings(file) {
+  const status = document.getElementById('status');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const importData = JSON.parse(e.target.result);
+
+      // Validierung
+      if (!importData.anschreibenText && !importData.customHinweise) {
+        throw new Error('Ungültiges Dateiformat');
+      }
+
+      // Anschreibentext setzen
+      if (importData.anschreibenText) {
+        document.getElementById('default-anschreiben').value = importData.anschreibenText;
+      }
+
+      // Hinweise importieren (mit Migration für alte Formate)
+      if (importData.customHinweise && Array.isArray(importData.customHinweise)) {
+        customHinweise = importData.customHinweise.map((h, i) => ({
+          id: h.id || 'imported_' + i,
+          label: h.label || 'Importiert',
+          text: h.text || '',
+          position: h.position || 'below'
+        }));
+        renderHinweise();
+      }
+
+      status.textContent = 'Einstellungen wurden importiert! Klicke auf "Speichern" um sie zu übernehmen.';
+      status.className = 'status success';
+
+      setTimeout(() => {
+        status.className = 'status';
+      }, 5000);
+
+    } catch (err) {
+      console.error('Fehler beim Importieren:', err);
+      status.textContent = 'Fehler beim Importieren: ' + err.message;
+      status.className = 'status error';
+    }
+  };
+
+  reader.onerror = () => {
+    status.textContent = 'Fehler beim Lesen der Datei';
+    status.className = 'status error';
+  };
+
+  reader.readAsText(file);
+}
+
 // Event-Handler
 document.getElementById('add-hinweis-btn').addEventListener('click', addHinweis);
 document.getElementById('save-btn').addEventListener('click', saveSettings);
 document.getElementById('reset-btn').addEventListener('click', resetSettings);
+document.getElementById('export-btn').addEventListener('click', exportSettings);
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', (e) => {
+  if (e.target.files.length > 0) {
+    importSettings(e.target.files[0]);
+    e.target.value = ''; // Reset für erneuten Import
+  }
+});
 
 // Initialisieren
 loadSettings();

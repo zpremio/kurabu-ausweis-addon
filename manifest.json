@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Kurabu Mitgliedsausweis Generator",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Generiert druckbare Mitgliedsausweise mit QR-Code aus Kurabu-Profilen",
   "author": "Sven Ebensen / Bremen 1860",
   "icons": {
@@ -26,7 +26,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.kurabu.com/*/admin/members/*"],
-      "js": ["lib/jspdf.umd.min.js", "lib/qrcode.min.js", "content.js"],
+      "js": ["lib/jspdf.umd.min.js", "lib/qrcode.min.js", "font/uniformpro-fonts.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

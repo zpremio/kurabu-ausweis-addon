@@ -5,6 +5,53 @@
   // Prüfen ob wir auf einer Mitgliederseite sind
   if (!window.location.pathname.includes('/admin/members/')) return;
 
+  // Gecachte API-Daten (werden vom Interceptor befüllt)
+  let cachedMemberData = null;
+
+  // Fetch-Interceptor SOFORT installieren um Kurabu's API-Antworten abzufangen
+  (function installFetchInterceptor() {
+    const script = document.createElement('script');
+    script.textContent = `
+      (function() {
+        if (window.__kurabuInterceptorInstalled) return;
+        window.__kurabuInterceptorInstalled = true;
+
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+          const response = await originalFetch.apply(this, args);
+
+          // Prüfen ob es ein GetMembership API-Aufruf ist
+          const url = args[0]?.url || args[0];
+          if (url && url.includes('/api/admin/graphql') && url.includes('GetMembership')) {
+            try {
+              const clonedResponse = response.clone();
+              const data = await clonedResponse.json();
+              if (data?.data?.getMembership) {
+                console.log('Kurabu Ausweis: API Response abgefangen');
+                window.dispatchEvent(new CustomEvent('kurabu-member-data', {
+                  detail: data.data.getMembership
+                }));
+              }
+            } catch (e) {
+              console.error('Kurabu Ausweis: Fehler beim Abfangen', e);
+            }
+          }
+
+          return response;
+        };
+        console.log('Kurabu Ausweis: Fetch-Interceptor installiert');
+      })();
+    `;
+    document.documentElement.appendChild(script);
+    script.remove();
+  })();
+
+  // Event-Listener für abgefangene Daten
+  window.addEventListener('kurabu-member-data', (event) => {
+    cachedMemberData = event.detail;
+    console.log('Kurabu Ausweis: Daten gecacht', cachedMemberData?.fixedFieldValues?.firstName, cachedMemberData?.fixedFieldValues?.lastName);
+  });
+
   // Konstanten für PDF
   const PAGE_WIDTH = 210;
   const PAGE_HEIGHT = 297;
@@ -28,28 +75,30 @@
     { id: 'neuanmeldung', label: 'Neuanmeldung', text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.' }
   ];
 
-  // Button-Styles (bremen 1860 Dunkelrot)
+  // Button-Styles (wie Kurabu "Bearbeiten" Button)
   const buttonStyles = `
     .kurabu-ausweis-btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: #8B1A1A;
-      color: white !important;
+      justify-content: center;
+      gap: 4px;
+      padding: 6px 8px;
+      background: transparent;
+      color: black !important;
       border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 400;
       cursor: pointer;
-      transition: background 0.2s;
-      margin-left: 8px;
+      transition: background 0.2s, box-shadow 0.2s;
+      height: fit-content;
     }
     .kurabu-ausweis-btn:hover {
-      background: #6B1515;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     .kurabu-ausweis-btn:disabled {
-      background: #ccc;
+      opacity: 0.5;
       cursor: wait;
     }
     .kurabu-ausweis-btn svg {
@@ -204,13 +253,73 @@
     ];
   }
 
-  // Hilfsfunktion zum Extrahieren der Mitgliederdaten
-  function extractMemberData() {
+  // Membership-ID aus URL extrahieren
+  function getMembershipIdFromUrl() {
+    const match = window.location.pathname.match(/\/admin\/members\/([a-f0-9-]+)/i);
+    return match ? match[1] : null;
+  }
+
+  // API-Daten abrufen (aus Cache oder warten)
+  async function fetchMemberDataFromAPI() {
+    // Falls bereits gecacht, direkt zurückgeben
+    if (cachedMemberData) {
+      console.log('Kurabu Ausweis: Nutze gecachte Daten');
+      return cachedMemberData;
+    }
+
+    // Kurz warten falls Daten noch geladen werden
+    return new Promise((resolve) => {
+      let attempts = 0;
+      const checkCache = setInterval(() => {
+        attempts++;
+        if (cachedMemberData) {
+          clearInterval(checkCache);
+          resolve(cachedMemberData);
+        } else if (attempts > 20) { // 2 Sekunden max
+          clearInterval(checkCache);
+          console.log('Kurabu Ausweis: Keine gecachten Daten gefunden');
+          resolve(null);
+        }
+      }, 100);
+    });
+  }
+
+  // Datum formatieren (YYYY-MM-DD -> DD.MM.YYYY)
+  function formatDate(dateStr) {
+    if (!dateStr) return null;
+    // Falls bereits im deutschen Format
+    if (dateStr.includes('.')) return dateStr;
+    // ISO Format (YYYY-MM-DD) umwandeln
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return dateStr;
+  }
+
+  // Geschlecht übersetzen (API -> Deutsch)
+  function translateGender(gender) {
+    const translations = {
+      'male': 'Männlich',
+      'female': 'Weiblich',
+      'diverse': 'Divers',
+      'MALE': 'Männlich',
+      'FEMALE': 'Weiblich',
+      'DIVERSE': 'Divers'
+    };
+    return translations[gender] || gender;
+  }
+
+  // Hilfsfunktion zum Extrahieren der Mitgliederdaten (Fallback: DOM)
+  function extractMemberDataFromDOM() {
     const data = {
       profilId: null,
+      firstName: null,
+      lastName: null,
       name: null,
       gender: null,
       birthDate: null,
+      memberSince: null,
       street: null,
       addressLine2: null,
       zip: null,
@@ -227,21 +336,32 @@
                         document.querySelector('[data-testid="label-value-pair-name"] span');
     if (nameElement) {
       data.name = nameElement.textContent.trim();
+      // Versuche Name zu splitten (Fallback)
+      const parts = data.name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        data.lastName = parts.pop();
+        data.firstName = parts.join(' ');
+      } else {
+        data.firstName = data.name;
+        data.lastName = '';
+      }
     }
 
     const birthDateElement = document.querySelector('[data-testid="label-value-pair-geburtsdatum"] span');
     if (birthDateElement) {
-      // Entferne das Alter in Klammern, z.B. "01.01.1990 (35)" -> "01.01.1990"
       data.birthDate = birthDateElement.textContent.trim().replace(/\s*\(\d+\)\s*$/, '');
     }
 
-    // Geschlecht extrahieren (Männlich, Weiblich, Divers)
     const genderElement = document.querySelector('[data-testid="label-value-pair-geschlecht"] span');
     if (genderElement) {
       data.gender = genderElement.textContent.trim();
     }
 
-    // Postadresse extrahieren
+    const memberSinceElement = document.querySelector('[data-testid="label-value-pair-mitglied-seit"] span');
+    if (memberSinceElement) {
+      data.memberSince = memberSinceElement.textContent.trim();
+    }
+
     const addressElement = document.querySelector('[data-testid="label-value-pair-postadresse"]');
     if (addressElement) {
       const addressLines = addressElement.querySelectorAll('p');
@@ -265,6 +385,54 @@
     }
 
     return data;
+  }
+
+  // Hauptfunktion: Mitgliederdaten laden (API zuerst, dann DOM als Fallback)
+  async function extractMemberData() {
+    const membershipId = getMembershipIdFromUrl();
+
+    // Profil-ID immer zuerst aus DOM versuchen (wird auch bei API-Erfolg gebraucht)
+    const profilIdElement = document.querySelector('[data-testid="label-value-pair-profil-id"] span');
+    const domProfilId = profilIdElement ? profilIdElement.textContent.trim() : null;
+
+    if (membershipId) {
+      const apiData = await fetchMemberDataFromAPI(membershipId);
+
+      if (apiData && apiData.fixedFieldValues) {
+        const fv = apiData.fixedFieldValues;
+        const addr = fv.postalAddress || {};
+
+        console.log('Kurabu Ausweis: fixedFieldValues', JSON.stringify(fv, null, 2));
+        console.log('Kurabu Ausweis: firstName =', fv.firstName, '| lastName =', fv.lastName);
+
+        // Profil-ID: DOM > API membershipNumber > API fixedFieldValues.membershipNumber
+        const profilId = domProfilId || fv.membershipNumber || apiData.membershipNumber;
+
+        if (!profilId) {
+          console.warn('Kurabu Ausweis: Profil-ID nicht gefunden, nutze DOM-Fallback');
+          return extractMemberDataFromDOM();
+        }
+
+        return {
+          profilId: profilId,
+          firstName: fv.firstName || '',
+          lastName: fv.lastName || '',
+          name: `${fv.firstName || ''} ${fv.lastName || ''}`.trim(),
+          gender: translateGender(fv.gender),
+          birthDate: formatDate(fv.dob),
+          memberSince: formatDate(fv.startDate),
+          street: addr.street || null,
+          addressLine2: addr.addressOption || null,
+          zip: addr.zip || null,
+          city: addr.city || null,
+          country: (addr.country && addr.country !== 'Deutschland' && addr.country !== 'DE') ? addr.country : null
+        };
+      }
+    }
+
+    // Fallback: DOM-Extraktion
+    console.log('Kurabu Ausweis: API nicht verfügbar, nutze DOM-Extraktion');
+    return extractMemberDataFromDOM();
   }
 
   // QR-Code generieren
@@ -331,7 +499,7 @@
 
     // Empfänger-Adresse (+0,1cm nach unten: 42 -> 43)
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('UniformPro', 'normal');
     doc.setTextColor(0, 0, 0);
     let addressY = 43;
     const addressX = 28;
@@ -373,11 +541,11 @@
     doc.text(datumStr, PAGE_WIDTH - 38, 92, { align: 'right' });
 
     // Betreff (+0,7cm nach rechts: 21 -> 28)
-    doc.setFont('helvetica', 'bold');
-    doc.text('Neuer Ausweis', 28, 118);
+    doc.setFont('UniformPro', 'bold');
+    doc.text('Dein Mitgliedsausweis', 28, 118);
 
     // Text-Position
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('UniformPro', 'normal');
     doc.setFontSize(10);
     const maxWidth = 160; // mm
     let currentY = 130;
@@ -406,39 +574,82 @@
     let grussY = currentY + 10;
 
     // Grußformel (+0,7cm nach rechts: 21 -> 28)
-    doc.text('Mit freundlichen Grüßen', 28, grussY);
+    doc.text('Sportliche Grüßen', 28, grussY);
     doc.text('dein Team von bremen ', 28, grussY + 8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('UniformPro', 'bold');
     const teamTextWidth = doc.getTextWidth('dein Team von bremen ');
     doc.text('1860', 28 + teamTextWidth, grussY + 8);
 
     // === AUSWEISKARTE (unten rechts) ===
-    // Karte: 1,5cm nach oben (+ 15 -> 0)
     const cardX = PAGE_WIDTH - CARD_WIDTH - CARD_MARGIN_RIGHT;
     const cardY = PAGE_HEIGHT - CARD_HEIGHT - CARD_MARGIN_BOTTOM;
 
-    // Name auf Karte (fett/bold)
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(data.name || 'Name', cardX + 5, cardY + 13);
+    // Vorname und Nachname direkt aus API-Daten (oder Fallback)
+    const firstName = data.firstName || 'Vorname';
+    const lastName = data.lastName || '';
 
-    // Geburtsdatum (fett/bold)
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    if (data.birthDate) {
-      doc.text(data.birthDate, cardX + 5, cardY + 19);
+    // Maximale Breite für Namen (damit es nicht unter QR-Code läuft)
+    const maxNameWidth = 45; // mm
+
+    // Hilfsfunktion: Text mit automatischer Schriftgrößenanpassung
+    function drawTextWithAutoSize(text, x, y, maxWidth, startSize, minSize) {
+      let fontSize = startSize;
+      doc.setFontSize(fontSize);
+      let textWidth = doc.getTextWidth(text);
+
+      // Schriftgröße reduzieren bis Text passt oder Minimum erreicht
+      while (textWidth > maxWidth && fontSize > minSize) {
+        fontSize -= 0.5;
+        doc.setFontSize(fontSize);
+        textWidth = doc.getTextWidth(text);
+      }
+
+      doc.text(text, x, y);
+      return fontSize; // Zurückgeben für evtl. Nachname gleiche Größe
     }
 
-    // Profil-ID (fett/bold)
-    doc.text(data.profilId, cardX + 5, cardY + 25);
+    // Vorname (erste Zeile)
+    doc.setFont('UniformPro', 'bold');
+    doc.setTextColor(0, 0, 0);
+    const usedFontSize = drawTextWithAutoSize(firstName, cardX + 5, cardY + 11, maxNameWidth, 13, 8);
 
-    // QR-Code (bleibt gleich)
-    const qrDataUrl = await generateQRCodeDataUrl(data.profilId);
+    // Nachname (zweite Zeile) - gleiche Schriftgröße wie Vorname verwenden
+    if (lastName) {
+      doc.setFontSize(usedFontSize);
+      const lastNameWidth = doc.getTextWidth(lastName);
+      // Falls Nachname nicht passt, nochmal verkleinern
+      if (lastNameWidth > maxNameWidth) {
+        drawTextWithAutoSize(lastName, cardX + 5, cardY + 17, maxNameWidth, usedFontSize, 8);
+      } else {
+        doc.text(lastName, cardX + 5, cardY + 17);
+      }
+    }
+
+    // Geburtsdatum mit "Geb." Prefix (fett/bold)
+    doc.setFontSize(9);
+    doc.setFont('UniformPro', 'bold');
+    if (data.birthDate) {
+      doc.text('Geb. ' + data.birthDate, cardX + 5, cardY + 23);
+    }
+
+    // Mitglied seit (fett/bold)
+    if (data.memberSince) {
+      doc.text('Seit ' + data.memberSince, cardX + 5, cardY + 29);
+    }
+
+    // QR-Code
     const qrSize = 28;
     const qrX = cardX + CARD_WIDTH - qrSize - 3;
-    const qrY = cardY + 8;
+    const qrY = cardY + 9;
+    const qrDataUrl = await generateQRCodeDataUrl(data.profilId);
     doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+
+    // Profil-ID unter QR-Code (zentriert)
+    doc.setFontSize(7);
+    doc.setFont('UniformPro', 'bold');
+    const idText = data.profilId;
+    const idWidth = doc.getTextWidth(idText);
+    doc.text(idText, qrX + (qrSize / 2) - (idWidth / 2), qrY + qrSize + 4);
 
     // PDF speichern
     const filename = 'Ausweis_' + data.profilId + '_' + (data.name || 'Mitglied').replace(/\s+/g, '_') + '.pdf';
@@ -540,7 +751,7 @@
       generateBtn.textContent = 'Generiere...';
 
       try {
-        const memberData = extractMemberData();
+        const memberData = await extractMemberData();
 
         if (!memberData.profilId) {
           alert('Fehler: Profil-ID konnte nicht gefunden werden.');
@@ -560,9 +771,26 @@
     });
   }
 
+  // Prüfen ob wir auf der Detail-Seite sind (nicht /team, /payment, etc.)
+  function isDetailPage() {
+    const path = window.location.pathname;
+    // Pfad muss /admin/members/UUID sein, ohne weitere Segmente
+    // z.B. /de/admin/members/bd6f464a-87bc-4ddd-8b19-871d97150555
+    const memberPattern = /\/admin\/members\/[a-f0-9-]+\/?$/i;
+    return memberPattern.test(path);
+  }
+
   // Download-Button in die Seite einfügen
   function injectDownloadButton() {
     if (!window.location.pathname.includes('/members/')) return;
+
+    // Button entfernen wenn nicht auf Detail-Seite
+    if (!isDetailPage()) {
+      const existingBtn = document.getElementById('kurabu-ausweis-download-btn');
+      if (existingBtn) existingBtn.remove();
+      return;
+    }
+
     if (document.getElementById('kurabu-ausweis-download-btn')) return;
 
     // Styles nur einmal einfügen
@@ -573,8 +801,24 @@
       document.head.appendChild(styleEl);
     }
 
-    // Button neben den Tags (Aktiv, Leitung, Mitglied) einfügen
-    const targetContainer = document.querySelector('#member-name')?.parentElement;
+    // Button oben im Header neben dem Mitgliedsnamen einfügen
+    const memberName = document.getElementById('member-name');
+    let targetContainer = null;
+
+    if (memberName) {
+      // Der Container mit den Tags ist das Sibling-div neben dem h1
+      // Struktur: div.tw-flex > h1#member-name + div (mit tags)
+      const parent = memberName.parentElement;
+      if (parent) {
+        // Suche nach dem div mit den span.tag Elementen
+        const tagDiv = parent.querySelector('div');
+        if (tagDiv) {
+          targetContainer = tagDiv;
+        } else {
+          targetContainer = parent;
+        }
+      }
+    }
 
     if (!targetContainer) {
       setTimeout(injectDownloadButton, 1000);
@@ -590,6 +834,7 @@
       showHinweisModal();
     });
 
+    // Button am Ende des Containers anhängen (nach den Tags)
     targetContainer.appendChild(button);
     console.log('Kurabu Ausweis: Download-Button eingefügt');
   }
@@ -597,27 +842,31 @@
   // Message Listener für das Popup (falls noch benötigt)
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getMemberData') {
-      const data = extractMemberData();
-      return Promise.resolve(data);
+      extractMemberData().then(data => {
+        sendResponse(data);
+      });
+      return true; // Asynchrone Antwort
     }
 
     if (message.action === 'generatePDF') {
-      const memberData = extractMemberData();
-      const anschreibenText = message.anschreibenText || DEFAULT_ANSCHREIBEN;
-      const hinweisText = message.hinweisText || '';
-      const hinweisPosition = message.hinweisPosition || 'below';
+      (async () => {
+        try {
+          const memberData = await extractMemberData();
+          const anschreibenText = message.anschreibenText || DEFAULT_ANSCHREIBEN;
+          const hinweisText = message.hinweisText || '';
+          const hinweisPosition = message.hinweisPosition || 'below';
 
-      if (!memberData.profilId) {
-        return Promise.resolve({ success: false, error: 'Profil-ID nicht gefunden' });
-      }
+          if (!memberData.profilId) {
+            sendResponse({ success: false, error: 'Profil-ID nicht gefunden' });
+            return;
+          }
 
-      generatePDF(memberData, anschreibenText, hinweisText, hinweisPosition)
-        .then(() => {
+          await generatePDF(memberData, anschreibenText, hinweisText, hinweisPosition);
           sendResponse({ success: true });
-        })
-        .catch((error) => {
+        } catch (error) {
           sendResponse({ success: false, error: error.message });
-        });
+        }
+      })();
 
       return true; // Asynchrone Antwort
     }

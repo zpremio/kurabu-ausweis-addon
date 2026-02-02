@@ -52,6 +52,30 @@ jobs:
           # Rename to consistent name
           mv "$SIGNED_XPI" "web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"
 
+      - name: Create installer ZIP
+        run: |
+          mkdir -p installer
+          cp "web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi" installer/
+          cat > installer/INSTALLATION.txt << 'INST'
+          ========================================
+          Kurabu Mitgliedsausweis Generator
+          Version ${{ steps.get_version.outputs.VERSION }}
+          ========================================
+
+          INSTALLATION:
+
+          1. Öffne Firefox
+          2. Ziehe die Datei "kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"
+             in ein Firefox-Fenster
+          3. Klicke auf "Hinzufügen" wenn Firefox fragt
+
+          FERTIG! Das Add-on ist jetzt installiert.
+
+          ----------------------------------------
+          Bei Fragen: github.com/zpremio/kurabu-ausweis-addon
+          INST
+          cd installer && zip -r "../web-ext-artifacts/Kurabu-Ausweis-Installer-${{ steps.get_version.outputs.VERSION }}.zip" .
+
       - name: Update updates.json
         run: |
           cat > updates.json << 'EOF'
@@ -86,18 +110,18 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi
+          files: |
+            web-ext-artifacts/Kurabu-Ausweis-Installer-${{ steps.get_version.outputs.VERSION }}.zip
+            web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi
           name: Release v${{ steps.get_version.outputs.VERSION }}
           body: |
             ## Kurabu Mitgliedsausweis Generator v${{ steps.get_version.outputs.VERSION }}
 
             ### Installation
-            **Einfach:** [Installationsseite öffnen](https://zpremio.github.io/kurabu-ausweis-addon/)
-
-            **Manuell:**
-            1. Lade die `.xpi` Datei unten herunter
-            2. Öffne die Datei mit Firefox oder ziehe sie in ein Firefox-Fenster
-            3. Bestätige mit "Hinzufügen"
+            1. Lade die **ZIP-Datei** herunter (empfohlen)
+            2. Entpacke die ZIP-Datei
+            3. Ziehe die `.xpi` Datei in ein Firefox-Fenster
+            4. Bestätige mit "Hinzufügen"
 
             ### Auto-Update
             Bestehende Installationen werden automatisch aktualisiert.

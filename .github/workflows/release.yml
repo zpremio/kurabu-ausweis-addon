@@ -69,14 +69,18 @@ jobs:
           }
           EOF
 
-      - name: Commit updates.json
+      - name: Update install page version
+        run: |
+          sed -i "s/const CURRENT_VERSION = '[^']*'/const CURRENT_VERSION = '${{ steps.get_version.outputs.VERSION }}'/" docs/index.html
+
+      - name: Commit updates
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git fetch origin main
           git checkout main
-          git add updates.json
-          git commit -m "Update updates.json for v${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
+          git add updates.json docs/index.html
+          git commit -m "Update to v${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
           git push
 
       - name: Create GitHub Release
@@ -88,8 +92,11 @@ jobs:
             ## Kurabu Mitgliedsausweis Generator v${{ steps.get_version.outputs.VERSION }}
 
             ### Installation
-            1. Klicke auf die `.xpi` Datei unten
-            2. Firefox fragt, ob du das Addon installieren möchtest
+            **Einfach:** [Installationsseite öffnen](https://zpremio.github.io/kurabu-ausweis-addon/)
+
+            **Manuell:**
+            1. Lade die `.xpi` Datei unten herunter
+            2. Öffne die Datei mit Firefox oder ziehe sie in ein Firefox-Fenster
             3. Bestätige mit "Hinzufügen"
 
             ### Auto-Update

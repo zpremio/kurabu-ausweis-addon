@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kurabu Mitgliedsausweis Generator - Installation</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo img {
+      width: 96px;
+      height: 96px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      margin-bottom: 40px;
+    }
+    .version {
+      background: #8B1A1A;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      display: inline-block;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .install-btn {
+      display: block;
+      width: 100%;
+      padding: 18px 30px;
+      background: linear-gradient(135deg, #8B1A1A 0%, #6B1515 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+      text-align: center;
+    }
+    .install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(139, 26, 26, 0.4);
+    }
+    .install-btn svg {
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    .steps {
+      margin-top: 20px;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .step:last-child {
+      border-bottom: none;
+    }
+    .step-number {
+      background: #8B1A1A;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-content h3 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .step-content p {
+      color: #aaa;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .feature {
+      background: rgba(255,255,255,0.03);
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .feature-text {
+      font-size: 13px;
+      color: #aaa;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #666;
+      font-size: 13px;
+    }
+    .footer a {
+      color: #8B1A1A;
+      text-decoration: none;
+    }
+    .browser-warning {
+      display: none;
+      background: #ff6b6b;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .show-warning .browser-warning {
+      display: block;
+    }
+    .show-warning .install-btn {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    @media (max-width: 500px) {
+      .features {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="https://raw.githubusercontent.com/zpremio/kurabu-ausweis-addon/main/icons/icon-96.png" alt="Logo">
+    </div>
+
+    <h1>Kurabu Mitgliedsausweis Generator</h1>
+    <p class="subtitle">
+      <span class="version" id="version">v2.0.1</span>
+      &nbsp;&middot;&nbsp; Firefox Add-on f&uuml;r bremen 1860
+    </p>
+
+    <div class="browser-warning" id="browser-warning">
+      Dieses Add-on ist nur f&uuml;r Firefox verf&uuml;gbar. Bitte &ouml;ffne diese Seite in Firefox.
+    </div>
+
+    <div class="card">
+      <a href="#" class="install-btn" id="install-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Add-on installieren
+      </a>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Klicke auf "Add-on installieren"</h3>
+            <p>Die .xpi Datei wird heruntergeladen</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>&Ouml;ffne die heruntergeladene Datei</h3>
+            <p>Klicke auf die Datei in deinen Downloads oder ziehe sie in ein Firefox-Fenster</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Best&auml;tige die Installation</h3>
+            <p>Klicke auf "Hinzuf&uuml;gen" wenn Firefox fragt</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size: 18px; margin-bottom: 15px;">Funktionen</h2>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">🎫</div>
+          <div class="feature-text">Mitgliedsausweise mit QR-Code generieren</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📝</div>
+          <div class="feature-text">Anpassbare Anschreiben-Vorlagen</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔄</div>
+          <div class="feature-text">Automatische Updates</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🖨️</div>
+          <div class="feature-text">Druckfertige PDFs</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Entwickelt f&uuml;r <strong>bremen 1860</strong></p>
+      <p style="margin-top: 8px;">
+        <a href="https://github.com/zpremio/kurabu-ausweis-addon">GitHub</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/zpremio/kurabu-ausweis-addon/releases">Alle Versionen</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Aktuelle Version und Download-URL
+    const CURRENT_VERSION = '2.0.1';
+    const DOWNLOAD_URL = `https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v${CURRENT_VERSION}/kurabu-ausweis-${CURRENT_VERSION}.xpi`;
+
+    // Version anzeigen
+    document.getElementById('version').textContent = 'v' + CURRENT_VERSION;
+
+    // Browser-Check
+    const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+    if (!isFirefox) {
+      document.body.classList.add('show-warning');
+    }
+
+    // Install-Button
+    const installBtn = document.getElementById('install-btn');
+    installBtn.href = DOWNLOAD_URL;
+    installBtn.setAttribute('download', `kurabu-ausweis-${CURRENT_VERSION}.xpi`);
+
+    // Versuche direkte Installation (funktioniert nur wenn GitHub whitelisted ist)
+    installBtn.addEventListener('click', function(e) {
+      // Versuche InstallTrigger (deprecated aber funktioniert noch in Firefox)
+      if (typeof InstallTrigger !== 'undefined' && InstallTrigger.install) {
+        e.preventDefault();
+        InstallTrigger.install({
+          'Kurabu Mitgliedsausweis Generator': {
+            URL: DOWNLOAD_URL,
+            IconURL: 'https://raw.githubusercontent.com/zpremio/kurabu-ausweis-addon/main/icons/icon-96.png',
+            toString: function() { return this.URL; }
+          }
+        });
+      }
+      // Sonst: normaler Download (default behavior)
+    });
+  </script>
+</body>
+</html>

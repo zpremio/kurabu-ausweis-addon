@@ -93,18 +93,14 @@ jobs:
           }
           EOF
 
-      - name: Update install page version
-        run: |
-          sed -i "s/const CURRENT_VERSION = '[^']*'/const CURRENT_VERSION = '${{ steps.get_version.outputs.VERSION }}'/" docs/index.html
-
-      - name: Commit updates
+      - name: Commit updates.json
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git fetch origin main
           git checkout main
-          git add updates.json docs/index.html
-          git commit -m "Update to v${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
+          git add updates.json
+          git commit -m "Update updates.json for v${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
           git push
 
       - name: Create GitHub Release

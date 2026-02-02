@@ -1,0 +1,97 @@
+name: Build and Release Firefox Addon
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install web-ext
+        run: npm install -g web-ext
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update manifest version
+        run: |
+          sed -i 's/"version": "[^"]*"/"version": "${{ steps.get_version.outputs.VERSION }}"/' manifest.json
+
+      - name: Build unsigned XPI
+        run: |
+          web-ext build --overwrite-dest
+          mv web-ext-artifacts/*.zip web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}-unsigned.xpi
+
+      - name: Sign addon with Mozilla
+        id: sign
+        run: |
+          web-ext sign \
+            --api-key=${{ secrets.AMO_JWT_ISSUER }} \
+            --api-secret=${{ secrets.AMO_JWT_SECRET }} \
+            --channel=unlisted
+
+          # Find the signed XPI
+          SIGNED_XPI=$(find web-ext-artifacts -name "*.xpi" -type f | head -1)
+          echo "SIGNED_XPI=$SIGNED_XPI" >> $GITHUB_OUTPUT
+
+          # Rename to consistent name
+          mv "$SIGNED_XPI" "web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"
+
+      - name: Update updates.json
+        run: |
+          cat > updates.json << 'EOF'
+          {
+            "addons": {
+              "kurabu-ausweis@bremen1860.de": {
+                "updates": [
+                  {
+                    "version": "${{ steps.get_version.outputs.VERSION }}",
+                    "update_link": "https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v${{ steps.get_version.outputs.VERSION }}/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"
+                  }
+                ]
+              }
+            }
+          }
+          EOF
+
+      - name: Commit updates.json
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git fetch origin main
+          git checkout main
+          git add updates.json
+          git commit -m "Update updates.json for v${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
+          git push
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi
+          name: Release v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Kurabu Mitgliedsausweis Generator v${{ steps.get_version.outputs.VERSION }}
+
+            ### Installation
+            1. Klicke auf die `.xpi` Datei unten
+            2. Firefox fragt, ob du das Addon installieren möchtest
+            3. Bestätige mit "Hinzufügen"
+
+            ### Auto-Update
+            Bestehende Installationen werden automatisch aktualisiert.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

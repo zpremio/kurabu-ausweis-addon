@@ -60,19 +60,28 @@
   const CARD_MARGIN_RIGHT = 15;
   const CARD_MARGIN_BOTTOM = 15;
 
-  // Standard-Anschreibentext
-  const DEFAULT_ANSCHREIBEN = 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.';
-
-  // Feste Hinweise (nicht editierbar)
-  const FIXED_HINWEISE = [
-    { id: 'none', label: 'Kein zusätzlicher Hinweis', text: '' },
-    { id: 'custom', label: 'Eigener Text...', text: '' }
+  // Standard-Anschreiben (können in Settings bearbeitet werden)
+  const DEFAULT_ANSCHREIBEN_VORLAGEN = [
+    {
+      id: 'standard',
+      label: 'Standardausweis',
+      text: 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    },
+    {
+      id: 'ersatz',
+      label: 'Ersatzausweis',
+      text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    },
+    {
+      id: 'neuanmeldung',
+      label: 'Neuanmeldung',
+      text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    }
   ];
 
-  // Standard-Hinweise (können in Settings bearbeitet werden)
-  const DEFAULT_CUSTOM_HINWEISE = [
-    { id: 'ersatz', label: 'Ersatzausweis', text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.' },
-    { id: 'neuanmeldung', label: 'Neuanmeldung', text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.' }
+  // Feste Optionen (nicht editierbar)
+  const FIXED_ANSCHREIBEN = [
+    { id: 'custom', label: 'Eigener Text...', text: '' }
   ];
 
   // Button-Styles (wie Kurabu "Bearbeiten" Button)
@@ -229,27 +238,23 @@
   // Einstellungen aus Storage laden
   async function loadSettings() {
     try {
-      const result = await browser.storage.local.get(['anschreibenText', 'customHinweise']);
+      const result = await browser.storage.local.get(['anschreibenVorlagen']);
       return {
-        anschreibenText: result.anschreibenText || DEFAULT_ANSCHREIBEN,
-        customHinweise: result.customHinweise || DEFAULT_CUSTOM_HINWEISE
+        anschreibenVorlagen: result.anschreibenVorlagen || DEFAULT_ANSCHREIBEN_VORLAGEN
       };
     } catch (e) {
       console.error('Fehler beim Laden der Einstellungen:', e);
       return {
-        anschreibenText: DEFAULT_ANSCHREIBEN,
-        customHinweise: DEFAULT_CUSTOM_HINWEISE
+        anschreibenVorlagen: DEFAULT_ANSCHREIBEN_VORLAGEN
       };
     }
   }
 
-  // Alle Hinweise zusammenbauen (fest + custom)
-  function buildHinweiseList(customHinweise) {
-    // "Kein Hinweis" zuerst, dann custom Hinweise, dann "Eigener Text" am Ende
+  // Alle Anschreiben zusammenbauen (custom + "Eigener Text" am Ende)
+  function buildAnschreibenList(anschreibenVorlagen) {
     return [
-      FIXED_HINWEISE[0], // none
-      ...customHinweise,
-      FIXED_HINWEISE[1]  // custom
+      ...anschreibenVorlagen,
+      FIXED_ANSCHREIBEN[0]  // custom
     ];
   }
 
@@ -476,7 +481,7 @@
   }
 
   // PDF generieren
-  async function generatePDF(data, anschreibenText = DEFAULT_ANSCHREIBEN, hinweisText = '', hinweisPosition = 'below') {
+  async function generatePDF(data, anschreibenText) {
     if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
       throw new Error('jsPDF nicht geladen');
     }
@@ -550,25 +555,10 @@
     const maxWidth = 160; // mm
     let currentY = 130;
 
-    // Hinweis ÜBER dem Anschreibentext
-    if (hinweisText && hinweisPosition === 'above') {
-      const hinweisLines = doc.splitTextToSize(hinweisText, maxWidth);
-      doc.text(hinweisLines, 28, currentY);
-      currentY += (hinweisLines.length * 5) + 4;
-    }
-
     // Anschreiben-Text
     const anschreibenLines = doc.splitTextToSize(anschreibenText, maxWidth);
     doc.text(anschreibenLines, 28, currentY);
     currentY += (anschreibenLines.length * 5);
-
-    // Hinweis UNTER dem Anschreibentext
-    if (hinweisText && hinweisPosition === 'below') {
-      currentY += 4; // Abstand
-      const hinweisLines = doc.splitTextToSize(hinweisText, maxWidth);
-      doc.text(hinweisLines, 28, currentY);
-      currentY += (hinweisLines.length * 5);
-    }
 
     // Grußformel
     let grussY = currentY + 10;
@@ -656,25 +646,26 @@
     doc.save(filename);
   }
 
-  // Modal für Hinweis-Auswahl anzeigen
-  async function showHinweisModal() {
+  // Modal für Anschreiben-Auswahl anzeigen
+  async function showAnschreibenModal() {
     // Falls Modal schon existiert, entfernen
     const existingModal = document.getElementById('kurabu-modal-overlay');
     if (existingModal) existingModal.remove();
 
     // Einstellungen laden
     const settings = await loadSettings();
-    const hinweise = buildHinweiseList(settings.customHinweise);
+    const anschreiben = buildAnschreibenList(settings.anschreibenVorlagen);
 
     // Dropdown-Optionen erstellen
-    const optionsHtml = hinweise.map(h =>
-      `<option value="${h.id}">${h.label}</option>`
+    const optionsHtml = anschreiben.map(a =>
+      `<option value="${a.id}">${a.label}</option>`
     ).join('');
 
-    // Vorschau-Text kürzen wenn nötig
-    const previewText = settings.anschreibenText.length > 200
-      ? settings.anschreibenText.substring(0, 200) + '...'
-      : settings.anschreibenText;
+    // Vorschau-Text des ersten Anschreibens
+    const firstAnschreiben = anschreiben[0];
+    const previewText = firstAnschreiben.text.length > 200
+      ? firstAnschreiben.text.substring(0, 200) + '...'
+      : firstAnschreiben.text;
 
     // Modal erstellen
     const overlay = document.createElement('div');
@@ -684,17 +675,17 @@
       <div class="kurabu-modal">
         <h2>Mitgliedsausweis erstellen</h2>
 
-        <label>Anschreibentext:</label>
-        <div class="kurabu-modal-preview-label">Vorschau (bearbeiten in Einstellungen)</div>
-        <div class="kurabu-modal-preview">${previewText}</div>
-
-        <label>Zusätzlicher Hinweis:</label>
-        <select id="kurabu-hinweis-select">
+        <label>Anschreiben auswählen:</label>
+        <select id="kurabu-anschreiben-select">
           ${optionsHtml}
         </select>
+
+        <div class="kurabu-modal-preview-label">Vorschau:</div>
+        <div class="kurabu-modal-preview" id="kurabu-preview">${previewText}</div>
+
         <div id="kurabu-custom-container" style="display: none;">
-          <label>Eigener Hinweistext:</label>
-          <textarea id="kurabu-custom-text" placeholder="Eigenen Hinweistext eingeben..."></textarea>
+          <label>Eigener Anschreibentext:</label>
+          <textarea id="kurabu-custom-text" placeholder="Eigenen Anschreibentext eingeben..."></textarea>
         </div>
         <a class="kurabu-modal-settings-link" id="kurabu-settings-link">Einstellungen...</a>
         <div class="kurabu-modal-buttons">
@@ -707,15 +698,25 @@
     document.body.appendChild(overlay);
 
     // Event-Handler
-    const select = document.getElementById('kurabu-hinweis-select');
+    const select = document.getElementById('kurabu-anschreiben-select');
     const customContainer = document.getElementById('kurabu-custom-container');
     const customText = document.getElementById('kurabu-custom-text');
+    const preview = document.getElementById('kurabu-preview');
     const settingsLink = document.getElementById('kurabu-settings-link');
     const cancelBtn = document.getElementById('kurabu-cancel-btn');
     const generateBtn = document.getElementById('kurabu-generate-btn');
 
+    // Vorschau aktualisieren bei Auswahl-Änderung
     select.addEventListener('change', () => {
-      customContainer.style.display = select.value === 'custom' ? 'block' : 'none';
+      const isCustom = select.value === 'custom';
+      customContainer.style.display = isCustom ? 'block' : 'none';
+      preview.style.display = isCustom ? 'none' : 'block';
+
+      if (!isCustom) {
+        const selectedAnschreiben = anschreiben.find(a => a.id === select.value);
+        const text = selectedAnschreiben ? selectedAnschreiben.text : '';
+        preview.textContent = text.length > 200 ? text.substring(0, 200) + '...' : text;
+      }
     });
 
     settingsLink.addEventListener('click', (e) => {
@@ -734,17 +735,18 @@
     });
 
     generateBtn.addEventListener('click', async () => {
-      // Hinweistext und Position ermitteln
-      let hinweisText = '';
-      let hinweisPosition = 'below'; // Default
+      // Anschreibentext ermitteln
+      let anschreibenText = '';
 
       if (select.value === 'custom') {
-        hinweisText = customText.value.trim();
-        // Für eigenen Text: Default Position "below"
+        anschreibenText = customText.value.trim();
+        if (!anschreibenText) {
+          alert('Bitte gib einen Anschreibentext ein.');
+          return;
+        }
       } else {
-        const selectedHinweis = hinweise.find(h => h.id === select.value);
-        hinweisText = selectedHinweis ? selectedHinweis.text : '';
-        hinweisPosition = selectedHinweis?.position || 'below';
+        const selectedAnschreiben = anschreiben.find(a => a.id === select.value);
+        anschreibenText = selectedAnschreiben ? selectedAnschreiben.text : '';
       }
 
       generateBtn.disabled = true;
@@ -759,7 +761,7 @@
           return;
         }
 
-        await generatePDF(memberData, settings.anschreibenText, hinweisText, hinweisPosition);
+        await generatePDF(memberData, anschreibenText);
         overlay.remove();
 
       } catch (error) {
@@ -831,7 +833,7 @@
     button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Mitgliedsausweis';
 
     button.addEventListener('click', () => {
-      showHinweisModal();
+      showAnschreibenModal();
     });
 
     // Button am Ende des Containers anhängen (nach den Tags)
@@ -852,16 +854,14 @@
       (async () => {
         try {
           const memberData = await extractMemberData();
-          const anschreibenText = message.anschreibenText || DEFAULT_ANSCHREIBEN;
-          const hinweisText = message.hinweisText || '';
-          const hinweisPosition = message.hinweisPosition || 'below';
+          const anschreibenText = message.anschreibenText || DEFAULT_ANSCHREIBEN_VORLAGEN[0].text;
 
           if (!memberData.profilId) {
             sendResponse({ success: false, error: 'Profil-ID nicht gefunden' });
             return;
           }
 
-          await generatePDF(memberData, anschreibenText, hinweisText, hinweisPosition);
+          await generatePDF(memberData, anschreibenText);
           sendResponse({ success: true });
         } catch (error) {
           sendResponse({ success: false, error: error.message });

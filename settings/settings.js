@@ -1,83 +1,74 @@
-// Settings Script: Verwaltet Textbausteine
+// Settings Script: Verwaltet Anschreiben-Vorlagen
 
-// Standard-Anschreibentext
-const DEFAULT_ANSCHREIBEN = 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.';
+// Standard-Anschreiben-Vorlagen
+const DEFAULT_ANSCHREIBEN_VORLAGEN = [
+  {
+    id: 'standard',
+    label: 'Standardausweis',
+    text: 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+  },
+  {
+    id: 'ersatz',
+    label: 'Ersatzausweis',
+    text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+  },
+  {
+    id: 'neuanmeldung',
+    label: 'Neuanmeldung',
+    text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+  }
+];
 
-// Standard-Textbausteine (nicht löschbar)
-const FIXED_HINWEISE = [
-  { id: 'none', label: 'Kein zusätzlicher Hinweis', text: '', fixed: true },
+// Feste Option (nicht editierbar)
+const FIXED_ANSCHREIBEN = [
   { id: 'custom', label: 'Eigener Text...', text: '', fixed: true }
 ];
 
-// Standard-Hinweise die bearbeitet/gelöscht werden können (jetzt mit Position)
-const DEFAULT_CUSTOM_HINWEISE = [
-  { id: 'ersatz', label: 'Ersatzausweis', text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.', position: 'above' },
-  { id: 'neuanmeldung', label: 'Neuanmeldung', text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.', position: 'above' }
-];
-
-let customHinweise = [];
+let anschreibenVorlagen = [];
 
 // Einstellungen laden
 async function loadSettings() {
   try {
-    const result = await browser.storage.local.get(['anschreibenText', 'customHinweise']);
+    const result = await browser.storage.local.get(['anschreibenVorlagen']);
 
-    // Anschreibentext
-    const anschreibenTextarea = document.getElementById('default-anschreiben');
-    anschreibenTextarea.value = result.anschreibenText || DEFAULT_ANSCHREIBEN;
+    // Anschreiben-Vorlagen laden
+    anschreibenVorlagen = result.anschreibenVorlagen || [...DEFAULT_ANSCHREIBEN_VORLAGEN];
 
-    // Custom Hinweise (mit Migration für alte Daten ohne Position)
-    const savedHinweise = result.customHinweise || [...DEFAULT_CUSTOM_HINWEISE];
-    customHinweise = savedHinweise.map(h => ({
-      ...h,
-      position: h.position || 'below' // Default für alte Einträge ohne Position
-    }));
-
-    renderHinweise();
+    renderAnschreiben();
   } catch (e) {
     console.error('Fehler beim Laden:', e);
-    document.getElementById('default-anschreiben').value = DEFAULT_ANSCHREIBEN;
-    customHinweise = [...DEFAULT_CUSTOM_HINWEISE];
-    renderHinweise();
+    anschreibenVorlagen = [...DEFAULT_ANSCHREIBEN_VORLAGEN];
+    renderAnschreiben();
   }
 }
 
-// Hinweise rendern
-function renderHinweise() {
-  const container = document.getElementById('hinweise-list');
+// Anschreiben rendern
+function renderAnschreiben() {
+  const container = document.getElementById('anschreiben-list');
   container.innerHTML = '';
 
-  // Feste Hinweise (nur anzeigen, nicht editierbar)
-  FIXED_HINWEISE.forEach(hinweis => {
-    if (hinweis.id === 'none' || hinweis.id === 'custom') {
-      const div = document.createElement('div');
-      div.className = 'hinweis-item default';
-      div.innerHTML = `
-        <label>Bezeichnung:</label>
-        <input type="text" value="${hinweis.label}" disabled>
-        <small style="color: #888; font-size: 11px;">Dieser Eintrag ist fest und kann nicht bearbeitet werden.</small>
-      `;
-      container.appendChild(div);
-    }
+  // Feste Optionen (nur anzeigen, nicht editierbar)
+  FIXED_ANSCHREIBEN.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'anschreiben-item default';
+    div.innerHTML = `
+      <label>Bezeichnung:</label>
+      <input type="text" value="${item.label}" disabled>
+      <small style="color: #888; font-size: 11px;">Diese Option erscheint immer als letzte Auswahl und erlaubt freie Texteingabe.</small>
+    `;
+    container.appendChild(div);
   });
 
-  // Custom Hinweise
-  customHinweise.forEach((hinweis, index) => {
+  // Anschreiben-Vorlagen
+  anschreibenVorlagen.forEach((vorlage, index) => {
     const div = document.createElement('div');
-    div.className = 'hinweis-item';
+    div.className = 'anschreiben-item';
     div.innerHTML = `
       <button class="delete-btn" data-index="${index}">Löschen</button>
       <label>Bezeichnung:</label>
-      <input type="text" class="hinweis-label" data-index="${index}" value="${escapeHtml(hinweis.label)}">
-      <div class="hinweis-row">
-        <label>Position:</label>
-        <select class="hinweis-position" data-index="${index}">
-          <option value="above" ${hinweis.position === 'above' ? 'selected' : ''}>Über dem Anschreibentext</option>
-          <option value="below" ${hinweis.position === 'below' ? 'selected' : ''}>Unter dem Anschreibentext</option>
-        </select>
-      </div>
-      <label>Text:</label>
-      <textarea class="hinweis-text" data-index="${index}" rows="2">${escapeHtml(hinweis.text)}</textarea>
+      <input type="text" class="anschreiben-label" data-index="${index}" value="${escapeHtml(vorlage.label)}">
+      <label>Anschreibentext:</label>
+      <textarea class="anschreiben-text" data-index="${index}" rows="4">${escapeHtml(vorlage.text)}</textarea>
     `;
     container.appendChild(div);
   });
@@ -86,30 +77,23 @@ function renderHinweise() {
   container.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const index = parseInt(e.target.dataset.index);
-      customHinweise.splice(index, 1);
-      renderHinweise();
+      anschreibenVorlagen.splice(index, 1);
+      renderAnschreiben();
     });
   });
 
   // Event-Handler für Änderungen
-  container.querySelectorAll('.hinweis-label').forEach(input => {
+  container.querySelectorAll('.anschreiben-label').forEach(input => {
     input.addEventListener('input', (e) => {
       const index = parseInt(e.target.dataset.index);
-      customHinweise[index].label = e.target.value;
+      anschreibenVorlagen[index].label = e.target.value;
     });
   });
 
-  container.querySelectorAll('.hinweis-position').forEach(select => {
-    select.addEventListener('change', (e) => {
-      const index = parseInt(e.target.dataset.index);
-      customHinweise[index].position = e.target.value;
-    });
-  });
-
-  container.querySelectorAll('.hinweis-text').forEach(textarea => {
+  container.querySelectorAll('.anschreiben-text').forEach(textarea => {
     textarea.addEventListener('input', (e) => {
       const index = parseInt(e.target.dataset.index);
-      customHinweise[index].text = e.target.value;
+      anschreibenVorlagen[index].text = e.target.value;
     });
   });
 }
@@ -121,22 +105,21 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Neuen Hinweis hinzufügen
-function addHinweis() {
+// Neues Anschreiben hinzufügen
+function addAnschreiben() {
   const newId = 'custom_' + Date.now();
-  customHinweise.push({
+  anschreibenVorlagen.push({
     id: newId,
-    label: 'Neuer Hinweis',
-    text: '',
-    position: 'below'
+    label: 'Neues Anschreiben',
+    text: ''
   });
-  renderHinweise();
+  renderAnschreiben();
 
   // Zum neuen Eintrag scrollen
-  const items = document.querySelectorAll('.hinweis-item:not(.default)');
+  const items = document.querySelectorAll('.anschreiben-item:not(.default)');
   if (items.length > 0) {
     items[items.length - 1].scrollIntoView({ behavior: 'smooth' });
-    items[items.length - 1].querySelector('.hinweis-label').focus();
+    items[items.length - 1].querySelector('.anschreiben-label').focus();
   }
 }
 
@@ -145,19 +128,15 @@ async function saveSettings() {
   const status = document.getElementById('status');
 
   try {
-    const anschreibenText = document.getElementById('default-anschreiben').value.trim();
-
-    // Hinweise mit IDs und Position versehen falls nötig
-    const hinweiseToSave = customHinweise.map((h, i) => ({
-      id: h.id || 'custom_' + i,
-      label: h.label.trim(),
-      text: h.text.trim(),
-      position: h.position || 'below'
-    })).filter(h => h.label); // Leere Labels filtern
+    // Anschreiben-Vorlagen mit IDs versehen falls nötig
+    const vorlagenToSave = anschreibenVorlagen.map((v, i) => ({
+      id: v.id || 'custom_' + i,
+      label: v.label.trim(),
+      text: v.text.trim()
+    })).filter(v => v.label); // Leere Labels filtern
 
     await browser.storage.local.set({
-      anschreibenText: anschreibenText,
-      customHinweise: hinweiseToSave
+      anschreibenVorlagen: vorlagenToSave
     });
 
     status.textContent = 'Einstellungen wurden gespeichert!';
@@ -183,11 +162,10 @@ async function resetSettings() {
   const status = document.getElementById('status');
 
   try {
-    await browser.storage.local.remove(['anschreibenText', 'customHinweise']);
+    await browser.storage.local.remove(['anschreibenVorlagen']);
 
-    document.getElementById('default-anschreiben').value = DEFAULT_ANSCHREIBEN;
-    customHinweise = [...DEFAULT_CUSTOM_HINWEISE];
-    renderHinweise();
+    anschreibenVorlagen = [...DEFAULT_ANSCHREIBEN_VORLAGEN];
+    renderAnschreiben();
 
     status.textContent = 'Einstellungen wurden zurückgesetzt!';
     status.className = 'status success';
@@ -208,17 +186,13 @@ function exportSettings() {
   const status = document.getElementById('status');
 
   try {
-    const anschreibenText = document.getElementById('default-anschreiben').value.trim();
-
     const exportData = {
-      version: '1.5.0',
+      version: '2.0.0',
       exportDate: new Date().toISOString(),
-      anschreibenText: anschreibenText,
-      customHinweise: customHinweise.map(h => ({
-        id: h.id,
-        label: h.label.trim(),
-        text: h.text.trim(),
-        position: h.position || 'below'
+      anschreibenVorlagen: anschreibenVorlagen.map(v => ({
+        id: v.id,
+        label: v.label.trim(),
+        text: v.text.trim()
       }))
     };
 
@@ -256,26 +230,50 @@ function importSettings(file) {
     try {
       const importData = JSON.parse(e.target.result);
 
-      // Validierung
-      if (!importData.anschreibenText && !importData.customHinweise) {
+      // Validierung - unterstützt sowohl neues als auch altes Format
+      if (!importData.anschreibenVorlagen && !importData.customHinweise && !importData.anschreibenText) {
         throw new Error('Ungültiges Dateiformat');
       }
 
-      // Anschreibentext setzen
-      if (importData.anschreibenText) {
-        document.getElementById('default-anschreiben').value = importData.anschreibenText;
+      // Neues Format (v2.0.0+)
+      if (importData.anschreibenVorlagen && Array.isArray(importData.anschreibenVorlagen)) {
+        anschreibenVorlagen = importData.anschreibenVorlagen.map((v, i) => ({
+          id: v.id || 'imported_' + i,
+          label: v.label || 'Importiert',
+          text: v.text || ''
+        }));
+      }
+      // Migration von altem Format (v1.x)
+      else if (importData.customHinweise || importData.anschreibenText) {
+        anschreibenVorlagen = [];
+
+        // Alten Anschreibentext als erste Vorlage
+        if (importData.anschreibenText) {
+          anschreibenVorlagen.push({
+            id: 'migrated_standard',
+            label: 'Standardausweis',
+            text: importData.anschreibenText
+          });
+        }
+
+        // Alte Hinweise als separate Anschreiben mit kombiniertem Text migrieren
+        if (importData.customHinweise && Array.isArray(importData.customHinweise)) {
+          importData.customHinweise.forEach((h, i) => {
+            const baseText = importData.anschreibenText || DEFAULT_ANSCHREIBEN_VORLAGEN[0].text;
+            const combinedText = h.position === 'above'
+              ? `${h.text}\n\n${baseText}`
+              : `${baseText}\n\n${h.text}`;
+
+            anschreibenVorlagen.push({
+              id: h.id || 'migrated_' + i,
+              label: h.label || 'Importiert',
+              text: combinedText
+            });
+          });
+        }
       }
 
-      // Hinweise importieren (mit Migration für alte Formate)
-      if (importData.customHinweise && Array.isArray(importData.customHinweise)) {
-        customHinweise = importData.customHinweise.map((h, i) => ({
-          id: h.id || 'imported_' + i,
-          label: h.label || 'Importiert',
-          text: h.text || '',
-          position: h.position || 'below'
-        }));
-        renderHinweise();
-      }
+      renderAnschreiben();
 
       status.textContent = 'Einstellungen wurden importiert! Klicke auf "Speichern" um sie zu übernehmen.';
       status.className = 'status success';
@@ -300,7 +298,7 @@ function importSettings(file) {
 }
 
 // Event-Handler
-document.getElementById('add-hinweis-btn').addEventListener('click', addHinweis);
+document.getElementById('add-anschreiben-btn').addEventListener('click', addAnschreiben);
 document.getElementById('save-btn').addEventListener('click', saveSettings);
 document.getElementById('reset-btn').addEventListener('click', resetSettings);
 document.getElementById('export-btn').addEventListener('click', exportSettings);

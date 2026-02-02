@@ -82,7 +82,7 @@
       outline: none;
       border-color: #8B1A1A;
     }
-    .hinweis-item {
+    .anschreiben-item {
       background: #f9f9f9;
       border: 1px solid #eee;
       border-radius: 6px;
@@ -90,11 +90,11 @@
       margin-bottom: 12px;
       position: relative;
     }
-    .hinweis-item.default {
+    .anschreiben-item.default {
       background: #f0f0f0;
       border-style: dashed;
     }
-    .hinweis-item .delete-btn {
+    .anschreiben-item .delete-btn {
       position: absolute;
       top: 12px;
       right: 12px;
@@ -106,24 +106,11 @@
       font-size: 12px;
       cursor: pointer;
     }
-    .hinweis-item .delete-btn:hover {
+    .anschreiben-item .delete-btn:hover {
       background: #c82333;
     }
-    .hinweis-item.default .delete-btn {
+    .anschreiben-item.default .delete-btn {
       display: none;
-    }
-    .hinweis-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .hinweis-row label {
-      margin-bottom: 0;
-      white-space: nowrap;
-    }
-    .hinweis-row select {
-      flex-shrink: 0;
     }
     .btn {
       padding: 10px 20px;
@@ -206,21 +193,13 @@
   <p class="subtitle">Einstellungen f&uuml;r bremen 1860</p>
 
   <div class="section">
-    <h2>Standard-Anschreibentext</h2>
+    <h2>Anschreiben-Vorlagen</h2>
     <div class="info-box">
-      Dieser Text wird im Brief &uuml;ber der Gru&szlig;formel angezeigt.
-    </div>
-    <textarea id="default-anschreiben" rows="4"></textarea>
-  </div>
-
-  <div class="section">
-    <h2>Textbausteine (Hinweise)</h2>
-    <div class="info-box">
-      Diese Hinweise k&ouml;nnen beim Erstellen eines Ausweises ausgew&auml;hlt werden. Die Position bestimmt, ob der Hinweis &uuml;ber oder unter dem Anschreibentext erscheint.
+      Diese Anschreiben k&ouml;nnen beim Erstellen eines Ausweises ausgew&auml;hlt werden. Jedes Anschreiben enth&auml;lt den kompletten Text zwischen Anrede und Gru&szlig;formel.
     </div>
 
-    <div id="hinweise-list"></div>
-    <button class="btn btn-secondary" id="add-hinweis-btn">+ Neuen Hinweis hinzuf&uuml;gen</button>
+    <div id="anschreiben-list"></div>
+    <button class="btn btn-secondary" id="add-anschreiben-btn">+ Neues Anschreiben hinzuf&uuml;gen</button>
   </div>
 
   <div class="button-row">

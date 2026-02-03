@@ -45,9 +45,13 @@ jobs:
             --api-secret=${{ secrets.AMO_JWT_SECRET }} \
             --channel=unlisted
 
-          # Find the signed XPI
-          SIGNED_XPI=$(find web-ext-artifacts -name "*.xpi" -type f | head -1)
-          echo "SIGNED_XPI=$SIGNED_XPI" >> $GITHUB_OUTPUT
+          # Debug: show all XPI files
+          echo "All XPI files in web-ext-artifacts:"
+          ls -la web-ext-artifacts/
+
+          # Find the signed XPI (exclude the unsigned one we created earlier)
+          SIGNED_XPI=$(find web-ext-artifacts -name "*.xpi" ! -name "*-unsigned.xpi" -type f | head -1)
+          echo "Found signed XPI: $SIGNED_XPI"
 
           # Rename to consistent name
           mv "$SIGNED_XPI" "web-ext-artifacts/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"

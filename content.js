@@ -304,15 +304,21 @@
 
   // Geschlecht übersetzen (API -> Deutsch)
   function translateGender(gender) {
+    if (!gender) return null;
+    const genderLower = gender.toLowerCase();
     const translations = {
       'male': 'Männlich',
       'female': 'Weiblich',
       'diverse': 'Divers',
-      'MALE': 'Männlich',
-      'FEMALE': 'Weiblich',
-      'DIVERSE': 'Divers'
+      'männlich': 'Männlich',
+      'weiblich': 'Weiblich',
+      'divers': 'Divers',
+      'm': 'Männlich',
+      'w': 'Weiblich',
+      'd': 'Divers'
     };
-    return translations[gender] || gender;
+    console.log('Kurabu Ausweis: Gender raw =', gender, '| translated =', translations[genderLower]);
+    return translations[genderLower] || gender;
   }
 
   // Hilfsfunktion zum Extrahieren der Mitgliederdaten (Fallback: DOM)
@@ -502,39 +508,27 @@
 
     // === ANSCHREIBEN-BEREICH (oberer Teil) ===
 
-    // Empfänger-Adresse (+0,1cm nach unten: 42 -> 43)
+    // Empfänger-Adresse (+0,3cm nach unten: 42 -> 45)
     doc.setFontSize(11);
     doc.setFont('UniformPro', 'normal');
     doc.setTextColor(0, 0, 0);
-    let addressY = 43;
+    let addressY = 45;
     const addressX = 28;
 
-    // Anrede basierend auf Geschlecht
-    let anrede = '';
-    if (data.gender === 'Männlich') {
-      anrede = 'Herrn';
-    } else if (data.gender === 'Weiblich') {
-      anrede = 'Frau';
-    }
-    // Bei "Divers" oder unbekannt: keine Anrede
-
-    if (anrede) {
-      doc.text(anrede, addressX, addressY);
-      addressY += 6;
-    }
+    // Name direkt ohne Anrede (zeitgemäßer für Sportverein)
     doc.text(data.name || 'Mitglied', addressX, addressY);
-    addressY += 6;
+    addressY += 5;
     if (data.street) {
       doc.text(data.street, addressX, addressY);
-      addressY += 6;
+      addressY += 5;
     }
     if (data.addressLine2) {
       doc.text(data.addressLine2, addressX, addressY);
-      addressY += 6;
+      addressY += 5;
     }
     if (data.zip && data.city) {
       doc.text(data.zip + ' ' + data.city, addressX, addressY);
-      addressY += 6;
+      addressY += 5;
     }
     if (data.country) {
       doc.text(data.country, addressX, addressY);
@@ -598,45 +592,76 @@
       return fontSize; // Zurückgeben für evtl. Nachname gleiche Größe
     }
 
-    // Vorname (erste Zeile)
-    doc.setFont('UniformPro', 'bold');
-    doc.setTextColor(0, 0, 0);
-    const usedFontSize = drawTextWithAutoSize(firstName, cardX + 5, cardY + 11, maxNameWidth, 13, 8);
+    // Hilfsfunktion: Text mit weichem Schatten (Gradient-Simulation)
+    function drawTextWithShadow(text, x, y) {
+      // Mehrere Schichten für weichen Verlauf (außen hell, innen dunkler)
+      const layers = [
+        { offset: 0.5, color: 240 },
+        { offset: 0.4, color: 220 },
+        { offset: 0.3, color: 200 },
+        { offset: 0.2, color: 170 },
+        { offset: 0.1, color: 140 },
+      ];
 
-    // Nachname (zweite Zeile) - gleiche Schriftgröße wie Vorname verwenden
+      for (const layer of layers) {
+        doc.setTextColor(layer.color, layer.color, layer.color);
+        const o = layer.offset;
+        // 8 Richtungen pro Schicht
+        doc.text(text, x - o, y);
+        doc.text(text, x + o, y);
+        doc.text(text, x, y - o);
+        doc.text(text, x, y + o);
+        doc.text(text, x - o, y - o);
+        doc.text(text, x + o, y - o);
+        doc.text(text, x - o, y + o);
+        doc.text(text, x + o, y + o);
+      }
+
+      // Schwarzer Text darüber
+      doc.setTextColor(0, 0, 0);
+      doc.text(text, x, y);
+    }
+
+    // Vorname (erste Zeile) mit Schatten
+    doc.setFont('UniformPro', 'bold');
+    const usedFontSize = drawTextWithAutoSize(firstName, cardX + 5, cardY + 11, maxNameWidth, 13, 8);
+    doc.setFontSize(usedFontSize);
+    drawTextWithShadow(firstName, cardX + 5, cardY + 11);
+
+    // Nachname (zweite Zeile) mit Schatten
     if (lastName) {
       doc.setFontSize(usedFontSize);
       const lastNameWidth = doc.getTextWidth(lastName);
-      // Falls Nachname nicht passt, nochmal verkleinern
       if (lastNameWidth > maxNameWidth) {
         drawTextWithAutoSize(lastName, cardX + 5, cardY + 17, maxNameWidth, usedFontSize, 8);
-      } else {
-        doc.text(lastName, cardX + 5, cardY + 17);
       }
+      drawTextWithShadow(lastName, cardX + 5, cardY + 17);
     }
 
-    // Geburtsdatum mit "Geb." Prefix (fett/bold)
+    // Geburtsdatum mit "Geb." Prefix (fett/bold) - 1cm nach unten verschoben
     doc.setFontSize(9);
     doc.setFont('UniformPro', 'bold');
+    doc.setTextColor(0, 0, 0);
     if (data.birthDate) {
-      doc.text('Geb. ' + data.birthDate, cardX + 5, cardY + 23);
+      doc.text('Geb. ' + data.birthDate, cardX + 5, cardY + 33);
     }
 
-    // Mitglied seit (fett/bold)
+    // Mitglied seit (fett/bold) - 1cm nach unten verschoben, "Mitglied" ergänzt
     if (data.memberSince) {
-      doc.text('Seit ' + data.memberSince, cardX + 5, cardY + 29);
+      doc.text('Mitglied seit ' + data.memberSince, cardX + 5, cardY + 38);
     }
 
-    // QR-Code
+    // QR-Code - 0,2cm nach oben verschoben (original: 9, jetzt: 7)
     const qrSize = 28;
     const qrX = cardX + CARD_WIDTH - qrSize - 3;
-    const qrY = cardY + 9;
+    const qrY = cardY + 7;
     const qrDataUrl = await generateQRCodeDataUrl(data.profilId);
     doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
 
-    // Profil-ID unter QR-Code (zentriert)
+    // Profil-ID unter QR-Code (zentriert) - folgt QR-Code Position
     doc.setFontSize(7);
     doc.setFont('UniformPro', 'bold');
+    doc.setTextColor(0, 0, 0);
     const idText = data.profilId;
     const idWidth = doc.getTextWidth(idText);
     doc.text(idText, qrX + (qrSize / 2) - (idWidth / 2), qrY + qrSize + 4);

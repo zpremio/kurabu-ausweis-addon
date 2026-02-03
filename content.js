@@ -58,7 +58,7 @@
   const CARD_WIDTH = 85;
   const CARD_HEIGHT = 54;
   const CARD_MARGIN_RIGHT = 15;
-  const CARD_MARGIN_BOTTOM = 15;
+  const CARD_MARGIN_BOTTOM = 17;
 
   // Standard-Anschreiben (können in Settings bearbeitet werden)
   const DEFAULT_ANSCHREIBEN_VORLAGEN = [

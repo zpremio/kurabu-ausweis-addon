@@ -5,18 +5,31 @@ const DEFAULT_ANSCHREIBEN_VORLAGEN = [
   {
     id: 'standard',
     label: 'Standardausweis',
-    text: 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    text: 'Moin {{vorname}},\n\nmit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
   },
   {
     id: 'ersatz',
     label: 'Ersatzausweis',
-    text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    text: 'Moin {{vorname}},\n\ndies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
   },
   {
     id: 'neuanmeldung',
     label: 'Neuanmeldung',
-    text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+    text: 'Moin {{vorname}},\n\nherzlich willkommen bei Bremen1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
   }
+];
+
+// Verfügbare Variablen für Anschreiben
+const AVAILABLE_VARIABLES = [
+  { key: '{{vorname}}', description: 'Vorname des Mitglieds' },
+  { key: '{{nachname}}', description: 'Nachname des Mitglieds' },
+  { key: '{{name}}', description: 'Vollständiger Name' },
+  { key: '{{profilId}}', description: 'Profil-ID / Mitgliedsnummer' },
+  { key: '{{geburtsdatum}}', description: 'Geburtsdatum' },
+  { key: '{{mitgliedSeit}}', description: 'Mitglied seit Datum' },
+  { key: '{{strasse}}', description: 'Straße und Hausnummer' },
+  { key: '{{plz}}', description: 'Postleitzahl' },
+  { key: '{{ort}}', description: 'Stadt/Ort' }
 ];
 
 // Feste Option (nicht editierbar)
@@ -312,5 +325,16 @@ document.getElementById('import-file').addEventListener('change', (e) => {
   }
 });
 
+// Variablen-Liste rendern
+function renderVariables() {
+  const container = document.getElementById('variables-list');
+  if (container) {
+    container.innerHTML = AVAILABLE_VARIABLES.map(v =>
+      `<div style="margin-bottom: 4px;"><code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${v.key}</code> &ndash; ${v.description}</div>`
+    ).join('');
+  }
+}
+
 // Initialisieren
+renderVariables();
 loadSettings();

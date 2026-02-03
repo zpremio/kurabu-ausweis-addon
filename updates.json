@@ -3,8 +3,8 @@
     "kurabu-ausweis@bremen1860.de": {
       "updates": [
         {
-          "version": "2.0.5",
-          "update_link": "https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v2.0.5/kurabu-ausweis-2.0.5.xpi",
+          "version": "2.0.6",
+          "update_link": "https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v2.0.6/kurabu-ausweis-2.0.6.xpi",
           "applications": {
             "gecko": {
               "strict_min_version": "91.0"

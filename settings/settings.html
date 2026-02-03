@@ -190,13 +190,20 @@
 </head>
 <body>
   <h1>Mitgliedsausweis Generator</h1>
-  <p class="subtitle">Einstellungen f&uuml;r bremen 1860</p>
+  <p class="subtitle">Einstellungen f&uuml;r Bremen1860</p>
 
   <div class="section">
     <h2>Anschreiben-Vorlagen</h2>
     <div class="info-box">
       Diese Anschreiben k&ouml;nnen beim Erstellen eines Ausweises ausgew&auml;hlt werden. Jedes Anschreiben enth&auml;lt den kompletten Text zwischen Anrede und Gru&szlig;formel.
     </div>
+
+    <details style="margin-bottom: 16px;">
+      <summary style="cursor: pointer; font-weight: 600; color: #8B1A1A;">Verf&uuml;gbare Variablen</summary>
+      <div id="variables-list" style="background: #f9f9f9; padding: 12px; border-radius: 6px; margin-top: 8px; font-size: 13px;">
+        <!-- Wird von JS gefüllt -->
+      </div>
+    </details>
 
     <div id="anschreiben-list"></div>
     <button class="btn btn-secondary" id="add-anschreiben-btn">+ Neues Anschreiben hinzuf&uuml;gen</button>

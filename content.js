@@ -65,17 +65,17 @@
     {
       id: 'standard',
       label: 'Standardausweis',
-      text: 'Mit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+      text: 'Moin {{vorname}},\n\nmit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
     },
     {
       id: 'ersatz',
       label: 'Ersatzausweis',
-      text: 'Dies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+      text: 'Moin {{vorname}},\n\ndies ist ein Ersatzausweis. Der alte Ausweis verliert hiermit seine Gültigkeit.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
     },
     {
       id: 'neuanmeldung',
       label: 'Neuanmeldung',
-      text: 'Herzlich willkommen bei bremen 1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
+      text: 'Moin {{vorname}},\n\nherzlich willkommen bei Bremen1860! Wir freuen uns, dich als neues Mitglied begrüßen zu dürfen.\n\nMit diesem Schreiben erhältst du deinen Mitgliedsausweis, welcher nicht übertragbar und bis zum Ende deiner Mitgliedschaft gültig ist. Bitte löse den Ausweis vorsichtig aus der Perforierung und halte ihn beim Betreten des Hallenkomplexes unter den dort angebrachten Scanner.'
     }
   ];
 
@@ -83,6 +83,33 @@
   const FIXED_ANSCHREIBEN = [
     { id: 'custom', label: 'Eigener Text...', text: '' }
   ];
+
+  // Verfügbare Variablen für Anschreiben
+  const AVAILABLE_VARIABLES = [
+    { key: '{{vorname}}', description: 'Vorname des Mitglieds' },
+    { key: '{{nachname}}', description: 'Nachname des Mitglieds' },
+    { key: '{{name}}', description: 'Vollständiger Name' },
+    { key: '{{profilId}}', description: 'Profil-ID / Mitgliedsnummer' },
+    { key: '{{geburtsdatum}}', description: 'Geburtsdatum' },
+    { key: '{{mitgliedSeit}}', description: 'Mitglied seit Datum' },
+    { key: '{{strasse}}', description: 'Straße und Hausnummer' },
+    { key: '{{plz}}', description: 'Postleitzahl' },
+    { key: '{{ort}}', description: 'Stadt/Ort' }
+  ];
+
+  // Variablen im Text ersetzen
+  function replaceVariables(text, data) {
+    return text
+      .replace(/\{\{vorname\}\}/g, data.firstName || '')
+      .replace(/\{\{nachname\}\}/g, data.lastName || '')
+      .replace(/\{\{name\}\}/g, data.name || '')
+      .replace(/\{\{profilId\}\}/g, data.profilId || '')
+      .replace(/\{\{geburtsdatum\}\}/g, data.birthDate || '')
+      .replace(/\{\{mitgliedSeit\}\}/g, data.memberSince || '')
+      .replace(/\{\{strasse\}\}/g, data.street || '')
+      .replace(/\{\{plz\}\}/g, data.zip || '')
+      .replace(/\{\{ort\}\}/g, data.city || '');
+  }
 
   // Button-Styles (wie Kurabu "Bearbeiten" Button)
   const buttonStyles = `
@@ -558,11 +585,11 @@
     let grussY = currentY + 10;
 
     // Grußformel (+0,7cm nach rechts: 21 -> 28)
-    doc.text('Sportliche Grüßen', 28, grussY);
-    doc.text('dein Team von bremen ', 28, grussY + 8);
+    doc.text('Sportliche Grüße', 28, grussY);
+    doc.text('dein Team von ', 28, grussY + 5);
     doc.setFont('UniformPro', 'bold');
-    const teamTextWidth = doc.getTextWidth('dein Team von bremen ');
-    doc.text('1860', 28 + teamTextWidth, grussY + 8);
+    const teamTextWidth = doc.getTextWidth('dein Team von ');
+    doc.text('Bremen1860', 28 + teamTextWidth, grussY + 5);
 
     // === AUSWEISKARTE (unten rechts) ===
     const cardX = PAGE_WIDTH - CARD_WIDTH - CARD_MARGIN_RIGHT;
@@ -592,79 +619,56 @@
       return fontSize; // Zurückgeben für evtl. Nachname gleiche Größe
     }
 
-    // Hilfsfunktion: Text mit weichem Schatten (Gradient-Simulation)
-    function drawTextWithShadow(text, x, y) {
-      // Mehrere Schichten für weichen Verlauf (außen hell, innen dunkler)
-      const layers = [
-        { offset: 0.5, color: 240 },
-        { offset: 0.4, color: 220 },
-        { offset: 0.3, color: 200 },
-        { offset: 0.2, color: 170 },
-        { offset: 0.1, color: 140 },
-      ];
+    // QR-Code Größe (hier definieren, da für Positionsberechnung benötigt)
+    const qrSize = 23;
 
-      for (const layer of layers) {
-        doc.setTextColor(layer.color, layer.color, layer.color);
-        const o = layer.offset;
-        // 8 Richtungen pro Schicht
-        doc.text(text, x - o, y);
-        doc.text(text, x + o, y);
-        doc.text(text, x, y - o);
-        doc.text(text, x, y + o);
-        doc.text(text, x - o, y - o);
-        doc.text(text, x + o, y - o);
-        doc.text(text, x - o, y + o);
-        doc.text(text, x + o, y + o);
-      }
+    // Text-Position (Name rechts, +0,5cm)
+    const textX = cardX + qrSize + 15;
 
-      // Schwarzer Text darüber
-      doc.setTextColor(0, 0, 0);
-      doc.text(text, x, y);
-    }
-
-    // Vorname (erste Zeile) mit Schatten
+    // Vorname (erste Zeile)
     doc.setFont('UniformPro', 'bold');
-    const usedFontSize = drawTextWithAutoSize(firstName, cardX + 5, cardY + 11, maxNameWidth, 13, 8);
-    doc.setFontSize(usedFontSize);
-    drawTextWithShadow(firstName, cardX + 5, cardY + 11);
+    doc.setTextColor(0, 0, 0);
+    const usedFontSize = drawTextWithAutoSize(firstName, textX, cardY + 11, maxNameWidth, 13, 8);
 
-    // Nachname (zweite Zeile) mit Schatten
+    // Nachname (zweite Zeile)
     if (lastName) {
       doc.setFontSize(usedFontSize);
       const lastNameWidth = doc.getTextWidth(lastName);
       if (lastNameWidth > maxNameWidth) {
-        drawTextWithAutoSize(lastName, cardX + 5, cardY + 17, maxNameWidth, usedFontSize, 8);
+        drawTextWithAutoSize(lastName, textX, cardY + 15, maxNameWidth, usedFontSize, 8);
+      } else {
+        doc.text(lastName, textX, cardY + 15);
       }
-      drawTextWithShadow(lastName, cardX + 5, cardY + 17);
     }
 
-    // Geburtsdatum mit "Geb." Prefix (fett/bold) - 1cm nach unten verschoben
+    // Geburtsdatum (3,5cm nach links)
+    const leftTextX = textX - 35;
     doc.setFontSize(9);
     doc.setFont('UniformPro', 'bold');
     doc.setTextColor(0, 0, 0);
     if (data.birthDate) {
-      doc.text('Geb. ' + data.birthDate, cardX + 5, cardY + 33);
+      doc.text('Geb.', leftTextX, cardY + 35);
+      doc.text(data.birthDate, leftTextX, cardY + 38);
     }
 
-    // Mitglied seit (fett/bold) - 1cm nach unten verschoben, "Mitglied" ergänzt
+    // Mitglied seit (3,5cm nach links, 0,2cm nach unten)
     if (data.memberSince) {
-      doc.text('Mitglied seit ' + data.memberSince, cardX + 5, cardY + 38);
+      doc.text('Mitglied seit ' + data.memberSince, leftTextX, cardY + 42);
     }
 
-    // QR-Code - 0,2cm nach oben verschoben (original: 9, jetzt: 7)
-    const qrSize = 28;
-    const qrX = cardX + CARD_WIDTH - qrSize - 3;
-    const qrY = cardY + 7;
+    // QR-Code (4,5cm nach rechts, 1,0cm nach unten)
+    const qrX = cardX + 50;
+    const qrY = cardY + 17;
     const qrDataUrl = await generateQRCodeDataUrl(data.profilId);
     doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
 
-    // Profil-ID unter QR-Code (zentriert) - folgt QR-Code Position
+    // Profil-ID rechts neben QR-Code (vertikal, am rechten Rand)
     doc.setFontSize(7);
     doc.setFont('UniformPro', 'bold');
     doc.setTextColor(0, 0, 0);
     const idText = data.profilId;
-    const idWidth = doc.getTextWidth(idText);
-    doc.text(idText, qrX + (qrSize / 2) - (idWidth / 2), qrY + qrSize + 4);
+    // Text um 90° drehen und rechts vom QR-Code platzieren
+    doc.text(idText, qrX + qrSize + 4, qrY + qrSize, { angle: 90 });
 
     // PDF speichern
     const filename = 'Ausweis_' + data.profilId + '_' + (data.name || 'Mitglied').replace(/\s+/g, '_') + '.pdf';
@@ -712,6 +716,13 @@
           <label>Eigener Anschreibentext:</label>
           <textarea id="kurabu-custom-text" placeholder="Eigenen Anschreibentext eingeben..."></textarea>
         </div>
+
+        <details style="margin-bottom: 12px; font-size: 12px;">
+          <summary style="cursor: pointer; color: #666;">Verfügbare Variablen</summary>
+          <div style="background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 6px;">
+            ${AVAILABLE_VARIABLES.map(v => `<code style="background: #e0e0e0; padding: 1px 4px; border-radius: 2px;">${v.key}</code> ${v.description}`).join('<br>')}
+          </div>
+        </details>
         <a class="kurabu-modal-settings-link" id="kurabu-settings-link">Einstellungen...</a>
         <div class="kurabu-modal-buttons">
           <button class="kurabu-modal-btn kurabu-modal-btn-secondary" id="kurabu-cancel-btn">Abbrechen</button>
@@ -786,7 +797,9 @@
           return;
         }
 
-        await generatePDF(memberData, anschreibenText);
+        // Variablen im Anschreibentext ersetzen
+        const processedText = replaceVariables(anschreibenText, memberData);
+        await generatePDF(memberData, processedText);
         overlay.remove();
 
       } catch (error) {

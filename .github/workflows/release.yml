@@ -78,14 +78,19 @@ jobs:
 
       - name: Update updates.json
         run: |
-          cat > updates.json << 'EOF'
+          cat > updates.json << EOF
           {
             "addons": {
               "kurabu-ausweis@bremen1860.de": {
                 "updates": [
                   {
                     "version": "${{ steps.get_version.outputs.VERSION }}",
-                    "update_link": "https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v${{ steps.get_version.outputs.VERSION }}/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi"
+                    "update_link": "https://github.com/zpremio/kurabu-ausweis-addon/releases/download/v${{ steps.get_version.outputs.VERSION }}/kurabu-ausweis-${{ steps.get_version.outputs.VERSION }}.xpi",
+                    "applications": {
+                      "gecko": {
+                        "strict_min_version": "91.0"
+                      }
+                    }
                   }
                 ]
               }
